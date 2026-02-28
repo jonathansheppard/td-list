@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<title>To-Do List</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================
+     CONFIGURATION — Change your n8n webhook URL here
+     ============================================ */
+
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-border: #334155;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-faint: #475569;
+    --accent: #f59e0b;
+    --accent-glow: #f59e0b30;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --yellow: #eab308;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 16px 100px;
+  }
+
+  /* Header */
+  .header {
+    padding: 20px 0 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--accent), #fb923c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-date {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .stats {
+    display: flex;
+    gap: 14px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--accent);
+    display: block;
+  }
+  .stat-num.done { color: var(--green); }
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Setup banner */
+  .setup-banner {
+    background: var(--red);
+    color: white;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .setup-banner code {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .setup-banner a {
+    color: white;
+    font-weight: 700;
+  }
+
+  /* Input area */
+  .input-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .input-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 16px; /* prevents iOS zoom */
+    color: var(--text);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .input-row input:focus {
+    border-color: var(--accent);
+  }
+  .add-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent), #fb923c);
+    color: white;
+    font-size: 26px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+  }
+  .add-btn:active { transform: scale(0.94); }
+
+  .priority-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .pri-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .pri-btn.active-high { background: var(--red); color: white; border-color: transparent; }
+  .pri-btn.active-normal { background: var(--yellow); color: #1a1a1a; border-color: transparent; }
+  .pri-btn.active-low { background: var(--blue); color: white; border-color: transparent; }
+
+  /* Schedule bar */
+  .schedule-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .schedule-times { font-weight: 600; color: var(--text); }
+  .next-badge {
+    background: var(--accent-glow);
+    color: var(--accent);
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  /* Section headers */
+  .section-header {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .count-badge {
+    background: var(--accent-glow);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .count-badge.green {
+    background: rgba(34,197,94,0.15);
+    color: var(--green);
+  }
+
+  /* Todo items */
+  .todo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 12px 12px;
+    transition: opacity 0.2s;
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .todo-item.completed { opacity: 0.45; }
+
+  .check-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    border: 2px solid var(--text-faint);
+    background: transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    color: transparent;
+    font-size: 14px;
+  }
+  .check-btn.checked {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+  }
+
+  .todo-content { flex: 1; min-width: 0; }
+  .todo-text {
+    font-size: 15px;
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .todo-text.struck { text-decoration: line-through; }
+  .todo-meta {
+    display: flex;
+    gap: 8px;
+    margin-top: 3px;
+    align-items: center;
+  }
+  .priority-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .priority-tag.high { background: rgba(239,68,68,0.15); color: #f87171; }
+  .priority-tag.normal { background: rgba(234,179,8,0.15); color: #facc15; }
+  .priority-tag.low { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .time-stamp { font-size: 11px; color: var(--text-faint); }
+
+  .del-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-faint);
+    font-size: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .del-btn:active { color: var(--red); }
+
+  .clear-link {
+    font-size: 12px;
+    color: var(--text-faint);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+    margin-left: auto;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-faint);
+  }
+  .empty-icon { font-size: 44px; margin-bottom: 10px; }
+  .empty p { font-size: 14px; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    z-index: 999;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    animation: toastIn 0.3s ease;
+    white-space: nowrap;
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+  .toast.success { background: #16a34a; }
+  .toast.error { background: #dc2626; }
+
+  /* Loading spinner */
+  .loading {
+    display: flex;
+    justify-content: center;
+    padding: 60px 0;
+  }
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 11px;
+    color: var(--card-border);
+    line-height: 1.6;
+  }
+
+  /* Offline indicator */
+  .offline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 4px;
+  }
+  .offline-dot.online { background: var(--green); }
+  .offline-dot.offline { background: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- Setup Banner (hidden once configured) -->
+  <div class="setup-banner" id="setupBanner" style="display:none;">
+    ⚠️ Not connected to n8n yet. Open this file and set your webhook URL at the top of the <code>&lt;script&gt;</code> section.
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>To-Do List</h1>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+    <div class="stats">
+      <div>
+        <span class="stat-num" id="pendingCount">0</span>
+        <span class="stat-label">pending</span>
+      </div>
+      <div>
+        <span class="stat-num done" id="doneCount">0</span>
+        <span class="stat-label">done</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-card">
+    <div class="input-row">
+      <input type="text" id="todoInput" placeholder="What needs doing?" autocomplete="off">
+      <button class="add-btn" id="addBtn" onclick="addTodo()">+</button>
+    </div>
+    <div class="priority-row">
+      <button class="pri-btn" data-pri="low" onclick="setPriority('low')">🔵 Low</button>
+      <button class="pri-btn active-normal" data-pri="normal" onclick="setPriority('normal')">🟡 Normal</button>
+      <button class="pri-btn" data-pri="high" onclick="setPriority('high')">🔴 High</button>
+    </div>
+  </div>
+
+  <!-- Schedule bar -->
+  <div class="schedule-bar">
+    <div>
+      📧 Digest at <span class="schedule-times">7am · 3pm · 6pm · 10pm</span>
+    </div>
+    <span class="next-badge" id="nextSend"></span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loadingSpinner"><div class="spinner"></div></div>
+
+  <!-- Pending section -->
+  <div id="pendingSection" style="display:none;">
+    <div class="section-header">
+      Pending <span class="count-badge" id="pendingBadge">0</span>
+    </div>
+    <div class="todo-list" id="pendingList"></div>
+  </div>
+
+  <!-- Completed section -->
+  <div id="completedSection" style="display:none;">
+    <div class="section-header">
+      Completed <span class="count-badge green" id="doneBadge">0</span>
+      <button class="clear-link" onclick="clearCompleted()">Clear all</button>
+    </div>
+    <div class="todo-list" id="completedList"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty" id="emptyState" style="display:none;">
+    <div class="empty-icon">📝</div>
+    <p>No tasks yet. Add one above.</p>
+  </div>
+
+  <div class="footer">
+    <span class="offline-dot" id="statusDot"></span> <span id="statusText"></span><br>
+    Tap ⋮ → "Add to Home screen" on Android to use as an app
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" style="display:none;"></div>
+
+<script>
+// ============================================================
+//  ⚙️ CONFIGURATION — PASTE YOUR n8n WEBHOOK BASE URL BELOW
+//
+//  It will look something like:
+//  https://your-name.app.n8n.cloud/webhook
+//
+//  The workflow creates these endpoints:
+//    GET  /get-todos
+//    POST /add-todo
+//    POST /toggle-todo
+//    POST /delete-todo
+//    POST /clear-completed
+// ============================================================
+
+const N8N_WEBHOOK_BASE = 'https://deeside.app.n8n.cloud/webhook';
+
+// ============================================================
+
+let todos = [];
+let currentPriority = 'normal';
+
+const $ = id => document.getElementById(id);
+const input = $('todoInput');
+
+// Check config
+function checkSetup() {
+  if (!N8N_WEBHOOK_BASE) {
+    $('setupBanner').style.display = 'block';
+    $('loadingSpinner').style.display = 'none';
+    $('statusDot').className = 'offline-dot offline';
+    $('statusText').textContent = 'Not connected — set webhook URL in code';
+    return false;
+  }
+  return true;
+}
+
+// Date display
+function updateDate() {
+  const now = new Date();
+  $('headerDate').textContent = now.toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long'
+  }) + ' · ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Next send time
+function updateNextSend() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const times = [
+    { m: 7*60, label: '7 AM' },
+    { m: 15*60, label: '3 PM' },
+    { m: 18*60, label: '6 PM' },
+    { m: 22*60, label: '10 PM' }
+  ];
+  let next = times.find(t => t.m > mins);
+  $('nextSend').textContent = 'Next: ' + (next ? next.label : '7 AM tomorrow');
+}
+
+// Toast
+function showToast(msg, type = 'success') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+
+// Priority buttons
+function setPriority(p) {
+  currentPriority = p;
+  document.querySelectorAll('.pri-btn').forEach(btn => {
+    const bp = btn.dataset.pri;
+    btn.className = 'pri-btn' + (bp === p ? ` active-${bp}` : '');
+  });
+}
+
+// Render
+function render() {
+  const pending = todos.filter(t => t.status !== 'done');
+  const done = todos.filter(t => t.status === 'done');
+
+  // Sort: high first, then normal, then low
+  const order = { high: 0, normal: 1, low: 2 };
+  pending.sort((a, b) => (order[a.priority] || 1) - (order[b.priority] || 1));
+
+  $('pendingCount').textContent = pending.length;
+  $('doneCount').textContent = done.length;
+  $('pendingBadge').textContent = pending.length;
+  $('doneBadge').textContent = done.length;
+
+  $('pendingSection').style.display = pending.length ? 'block' : 'none';
+  $('completedSection').style.display = done.length ? 'block' : 'none';
+  $('emptyState').style.display = (!pending.length && !done.length) ? 'block' : 'none';
+
+  $('pendingList').innerHTML = pending.map(t => todoHTML(t, false)).join('');
+  $('completedList').innerHTML = done.map(t => todoHTML(t, true)).join('');
+}
+
+function todoHTML(t, isDone) {
+  const time = t.created_at ? new Date(t.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  return `
+    <div class="todo-item ${isDone ? 'completed' : ''}">
+      <button class="check-btn ${isDone ? 'checked' : ''}" onclick="toggleTodo('${t.id}')">
+        ${isDone ? '✓' : ''}
+      </button>
+      <div class="todo-content">
+        <span class="todo-text ${isDone ? 'struck' : ''}">${escHTML(t.text)}</span>
+        ${!isDone ? `<div class="todo-meta">
+          <span class="priority-tag ${t.priority || 'normal'}">${t.priority || 'normal'}</span>
+          <span class="time-stamp">${time}</span>
+        </div>` : ''}
+      </div>
+      <button class="del-btn" onclick="deleteTodo('${t.id}')">×</button>
+    </div>`;
+}
+
+function escHTML(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// API calls
+async function fetchTodos() {
+  if (!checkSetup()) return;
+  try {
+    const res = await fetch(N8N_WEBHOOK_BASE + '/get-todos');
+    const data = await res.json();
+    todos = Array.isArray(data) ? data : (data.todos || []);
+    $('statusDot').className = 'offline-dot online';
+    $('statusText').textContent = 'Connected to n8n';
+  } catch (e) {
+    console.error(e);
+    $('statusDot').className = 'offline-dot offline';
+    $('statusText').textContent = 'Cannot reach n8n';
+    showToast('Could not load todos', 'error');
+  }
+  $('loadingSpinner').style.display = 'none';
+  render();
+}
+
+async function addTodo() {
+  const text = input.value.trim();
+  if (!text || !checkSetup()) return;
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  const todo = { id, text, priority: currentPriority, status: 'pending', created_at: new Date().toISOString() };
+
+  // Optimistic add
+  todos.unshift(todo);
+  render();
+  input.value = '';
+  input.focus();
+
+  try {
+    await fetch(N8N_WEBHOOK_BASE + '/add-todo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(todo)
+    });
+  } catch (e) {
+    showToast('Saved locally — will sync when connected', 'error');
+  }
+}
+
+async function toggleTodo(id) {
+  if (!checkSetup()) return;
+  const t = todos.find(x => x.id === id);
+  if (t) t.status = t.status === 'done' ? 'pending' : 'done';
+  render();
+
+  try {
+    await fetch(N8N_WEBHOOK_BASE + '/toggle-todo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  } catch (e) {
+    showToast('Sync failed — try again', 'error');
+  }
+}
+
+async function deleteTodo(id) {
+  if (!checkSetup()) return;
+  todos = todos.filter(t => t.id !== id);
+  render();
+
+  try {
+    await fetch(N8N_WEBHOOK_BASE + '/delete-todo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    });
+  } catch (e) {
+    showToast('Sync failed — try again', 'error');
+  }
+}
+
+async function clearCompleted() {
+  if (!checkSetup()) return;
+  todos = todos.filter(t => t.status !== 'done');
+  render();
+
+  try {
+    await fetch(N8N_WEBHOOK_BASE + '/clear-completed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    showToast('Cleared completed tasks');
+  } catch (e) {
+    showToast('Sync failed', 'error');
+  }
+}
+
+// Enter key
+input.addEventListener('keydown', e => { if (e.key === 'Enter') addTodo(); });
+
+// Init
+updateDate();
+updateNextSend();
+setInterval(updateDate, 30000);
+setInterval(updateNextSend, 60000);
+fetchTodos();
+</script>
+
+</body>
+</html>
